@@ -1,8 +1,8 @@
 name: astrbot_plugin_zidongjiexiplusyoutubexiazai
 version: 1.0.0
-desc: 基于原版parser增强：修复YouTube下载、支持手动YTD命令、后台下载、进度汇报及白名单模式
-author: soulter & fork_maintainer
-link: https://github.com/Zhalslar/astrbot_plugin_parser
+desc: 万能解析,yt4khdr下载,默认白名单模式,自用基于原版万能解析增强
+author: constansino
+link: https://github.com/constansino/astrbot_plugin_zidongjiexiplusyoutubexiazai
 license: MIT
-repo: https://github.com/Zhalslar/astrbot_plugin_parser
+repo: https://github.com/constansino/astrbot_plugin_zidongjiexiplusyoutubexiazai
 
