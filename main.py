@@ -8,8 +8,8 @@ from pathlib import Path
 
 from astrbot.api import logger
 from astrbot.api.event import filter
-from astrbot.api.star import Context, Star, StarTools
-from astrbot.core import AstrBotConfig
+from astrbot.api.star import Context, Star, StarTools, register
+from astrbot.core.config.astrbot_config import AstrBotConfig
 from astrbot.core.message.components import At, Image, Json, Video, Plain
 from astrbot.core.platform.astr_message_event import AstrMessageEvent
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
@@ -18,6 +18,7 @@ from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
 
 from .core.arbiter import ArbiterContext, EmojiLikeArbiter
 from .core.clean import CacheCleaner
+from .core.cookie_sync import CookieSyncer
 from .core.debounce import Debouncer
 from .core.download import Downloader
 from .core.parsers import BaseParser, BilibiliParser
@@ -26,6 +27,7 @@ from .core.sender import MessageSender
 from .core.utils import extract_json_url
 
 
+@register("astrbot_plugin_zidongjiexiplusyoutubexiazai", "constansino", "万能解析,yt4khdr下载,默认白名单模式,自用基于原版万能解析增强", "1.0.0")
 class ParserPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -48,6 +50,12 @@ class ParserPlugin(Star):
             self.config["parsing_mode"] = "白名单"
         if "enabled_sessions" not in self.config:
             self.config["enabled_sessions"] = []
+        if "emoji_cdn" not in self.config:
+            self.config["emoji_cdn"] = "https://cdn.jsdelivr.net/npm/emoji-datasource-facebook@14.0.0/img/facebook/64/"
+        if "emoji_style" not in self.config:
+            self.config["emoji_style"] = "FACEBOOK"
+        if "enable_platforms" not in self.config:
+            self.config["enable_platforms"] = ["A站", "B站", "微博", "小红书", "抖音", "快手", "NGA", "TikTok", "Instagram", "推特", "油管", "网易云"]
             
         self.config.save_config()
 
@@ -84,6 +92,8 @@ class ParserPlugin(Star):
 
         # 缓存清理器
         self.cleaner = CacheCleaner(self.context, self.config)
+        # Cookie 同步器
+        self.cookie_syncer = CookieSyncer(self.context, self.config)
         
         # ytdlp 会话状态
         self.ytdlp_sessions: dict[str, dict] = {}
@@ -107,6 +117,8 @@ class ParserPlugin(Star):
             await parser.close_session()
         # 关缓存清理器
         await self.cleaner.stop()
+        # 关 Cookie 同步器
+        await self.cookie_syncer.stop()
 
     def _register_parser(self):
         """注册解析器"""
@@ -146,7 +158,7 @@ class ParserPlugin(Star):
         raise ValueError(f"未找到类型为 {parser_type} 的 parser 实例")
 
     @filter.event_message_type(filter.EventMessageType.ALL)
-    async def on_message(self, event: AstrMessageEvent):
+    async def on_message(self, event: AstrMessageEvent, *args, **kwargs):
         """消息的统一入口"""
         # 防止与 /ytd 指令或其他配置的前缀冲突
         msg_str = event.message_str.strip()
@@ -489,3 +501,11 @@ class ParserPlugin(Star):
         yield event.chain_result([Image.fromBytes(qrcode)])
         async for msg in parser.check_qr_state():
             yield event.plain_result(msg)
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("同步油管cookie")
+    async def sync_ytb_cookie(self, event: AstrMessageEvent):
+        """手动触发油管 Cookie 同步"""
+        yield event.plain_result("开始同步...")
+        await self.cookie_syncer.sync_cookie()
+        yield event.plain_result("同步完成，请查看日志确认结果")
