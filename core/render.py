@@ -313,7 +313,6 @@ class Renderer:
             base_url=config["emoji_cdn"],
             style=config["emoji_style"],
             cache_dir=self.cache_dir / self._EMOJIS,
-            enable_tqdm=True,
         )
         """Emoji Source"""
 
@@ -335,9 +334,19 @@ class Renderer:
 
     @classmethod
     def _load_video_button(cls):
-        """预加载视频按钮"""
-        with Image.open(cls.DEFAULT_VIDEO_BUTTON_PATH) as img:
-            cls.video_button_image: PILImage = img.convert("RGBA")
+        """Preload video button with fallback."""
+        try:
+            with Image.open(cls.DEFAULT_VIDEO_BUTTON_PATH) as img:
+                img.load()
+                cls.video_button_image: PILImage = img.convert("RGBA")
+        except Exception as e:
+            logger.warning(f"load video button failed, fallback placeholder: {e}")
+            cls.video_button_image = Image.new("RGBA", (128, 128), (255, 255, 255, 0))
+
+        # set alpha to 30%
+        alpha = cls.video_button_image.split()[-1]
+        alpha = alpha.point(lambda x: int(x * 0.3))
+        cls.video_button_image.putalpha(alpha)
 
         # 设置透明度为 30%
         alpha = cls.video_button_image.split()[-1]  # 获取 alpha 通道
